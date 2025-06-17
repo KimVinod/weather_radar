@@ -69,6 +69,7 @@ class HomeProvider with ChangeNotifier {
   final WeatherRepository _weatherRepository = WeatherRepository();
 
   bool _isLoading = true;
+  String _loadingStatusText = '';
   double _radiusKm = 20.0;
   Uint8List? _reflectivityMapData;
   Position? _currentPosition; // Add this to store location
@@ -85,6 +86,7 @@ class HomeProvider with ChangeNotifier {
   DateTime? _radarValidTime;
 
   bool get isLoading => _isLoading;
+  String get loadingStatusText => _loadingStatusText;
   Uint8List? get reflectivityMapData => _reflectivityMapData;
   Position? get currentPosition => _currentPosition;
   String? get error => _error;
@@ -232,6 +234,7 @@ class HomeProvider with ChangeNotifier {
   Future<void> refreshData() async {
     _isLoading = true;
     _error = null;
+    _loadingStatusText = 'Initializing...';
     notifyListeners();
 
     try {
@@ -260,6 +263,9 @@ class HomeProvider with ChangeNotifier {
       _currentPosition = position;
       // --- END OF FIX ---
 
+      _loadingStatusText = 'Fetching radar data...';
+      notifyListeners();
+
       // Now, fetch all three images.
       final results = await Future.wait([
         _weatherRepository.getReflectivityMap(),
@@ -272,6 +278,9 @@ class HomeProvider with ChangeNotifier {
       final maskData = (results[2] as ByteData).buffer.asUint8List();
 
       if (reflectivityData != null && velocityData != null) {
+        _loadingStatusText = 'Processing images & analyzing...';
+        notifyListeners();
+
         final ocrFuture = OcrService().processImageForTimestamp(reflectivityData);
 
         final payload = ImageProcessingPayload(
@@ -316,6 +325,7 @@ class HomeProvider with ChangeNotifier {
     // --- End of saving logic ---
 
     _isLoading = false;
+    _loadingStatusText = '';
     notifyListeners();
   }
 

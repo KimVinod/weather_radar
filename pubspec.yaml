@@ -48,6 +48,10 @@ dependencies:
   timeago: ^3.7.1
   firebase_core: ^3.14.0
   firebase_crashlytics: ^4.3.7
+  disable_battery_optimization:
+    git:
+      url: https://github.com/pvsvamsi/Disable-Battery-Optimizations
+      ref: 3bd744d03c416859bbaedecd61c1c11fc022ed75
 
 dev_dependencies:
   flutter_test:

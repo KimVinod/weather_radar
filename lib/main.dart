@@ -37,6 +37,8 @@ Future<void> main() async {
     isInDebugMode: kDebugMode,
   );
 
+  await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(kReleaseMode);
+
   // Pass all uncaught "fatal" errors from the framework to Crashlytics
   FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
 
