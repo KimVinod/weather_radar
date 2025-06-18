@@ -1,16 +1,18 @@
-# weather_radar
+# Weather & Radar
 
-A new Flutter project.
+Track clouds, monitor rainfall, and get alerts when rain enters your area — all within a 249 km range from Mumbai.
 
-## Getting Started
+## Screenshots
+<p align = "start">
+   <img src="https://github.com/KimVinod/weather_radar/blob/main/screenshots/home.png" width="16%" unselectable="on"/>
+   <img src="https://github.com/KimVinod/weather_radar/blob/main/screenshots/notification.png" width="16%" unselectable="on"/>
+   <img src="https://github.com/KimVinod/weather_radar/blob/main/screenshots/settings.png" width="16%" unselectable="on"/>
+</p>
 
-This project is a starting point for a Flutter application.
+## Features:
+- Real-time Radar from IMD Mumbai Veravali.
+- Coverage up to 249 km.
+- Rain Alerts in Your Area.
+- Custom Radius Alerts.
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Disclaimer: This project is independently developed and not affiliated with IMD. It uses publicly accessible resources for educational and informational purposes only.
