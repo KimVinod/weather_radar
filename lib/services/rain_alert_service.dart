@@ -1,5 +1,3 @@
-// lib/services/rain_alert_service.dart
-
 import 'dart:developer';
 import 'dart:typed_data';
 import 'package:flutter/services.dart' show rootBundle; // --- ADDED ---
@@ -11,7 +9,6 @@ import 'package:weather_radar/utils/rain_status.dart';
 import '../data/weather_repository.dart';
 
 class RainAlertService {
-  // --- CONFIGURATION ---
   // How long to wait before sending another notification (in minutes).
   static const int notificationCooldownMinutes = 10;
 
@@ -20,7 +17,7 @@ class RainAlertService {
 
   Future<void> _initializeNotifications() async {
     const AndroidInitializationSettings androidSettings =
-    AndroidInitializationSettings('@mipmap/ic_launcher'); // IMPORTANT: Use your app's icon
+    AndroidInitializationSettings('@mipmap/ic_launcher');
     const InitializationSettings settings = InitializationSettings(android: androidSettings);
     await _notificationsPlugin.initialize(settings);
   }
@@ -48,7 +45,7 @@ class RainAlertService {
       return;
     }
 
-    // --- ADDED: Load ALL THREE images now ---
+    // --- Load ALL THREE images ---
     final results = await Future.wait([
       _repository.getReflectivityMap(),
       _repository.getVelocityMap(),
@@ -73,7 +70,6 @@ class RainAlertService {
       return;
     }
 
-    // --- REFACTORED: The entire analysis loop is replaced by one call ---
     final status = analyzeRadarData(
       reflectivityImage: reflectivityImage,
       velocityImage: velocityImage,
@@ -82,10 +78,9 @@ class RainAlertService {
       userLon: userLon,
       watchRadiusKm: watchRadiusKm,
     );
-    // --- END REFACTORED ---
 
     // 5. SEND NOTIFICATION IF NEEDED
-    if (status == RainStatus.approachingRain) { // <-- Check against the enum
+    if (status == RainStatus.approachingRain) {
       log("RainAlertService: Triggering notification for approaching rain.");
       _sendNotification("Rain is approaching your location.");
       await prefs.setInt('lastAlertTimestamp', DateTime.now().millisecondsSinceEpoch);
@@ -111,7 +106,7 @@ class RainAlertService {
     const NotificationDetails notificationDetails = NotificationDetails(android: androidDetails);
 
     _notificationsPlugin.show(
-      0, // Notification ID
+      0,
       'Rain Alert',
       body,
       notificationDetails,

@@ -1,5 +1,3 @@
-// lib/utils/image_utils.dart
-
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
@@ -36,10 +34,9 @@ img.Image? cropReflectivityImage(img.Image? originalImage) {
   );
 }
 
-// --- ADD THIS NEW HELPER FUNCTION TO THE FILE ---
 Map<String, num> getClosestValueWithDetails(img.Pixel pixel, Map<int, int> colorMap) {
   // We can use a more lenient threshold specifically for velocity if needed,
-  // but let's start with the same one.
+  // Increase the matchThreshold for more lenient matching.
   const double matchThreshold = 100.0;
 
   num minDistance = double.infinity;
@@ -74,12 +71,11 @@ Map<String, num> getClosestValueWithDetails(img.Pixel pixel, Map<int, int> color
   return {'value': closestValue, 'distance': minDistance, 'closestColorKey': closestColorKey};
 }
 
-// --- MODIFY THE EXISTING getClosestValue to use the new detailed function ---
 int getClosestValue(img.Pixel pixel, Map<int, int> colorMap) {
   return getClosestValueWithDetails(pixel, colorMap)['value']!.toInt();
 }
 
-// --- ADDED: New helper function to convert pixel back to GPS ---
+// --- elper function to convert pixel back to GPS ---
 Map<String, double> _transformPixelToGps(int x, int y) {
   const double mapKmDiameter = radarRangeKm * 2.0;
   const double kmPerPixel = mapKmDiameter / croppedImageWidth;
@@ -103,7 +99,7 @@ Map<String, double> _transformPixelToGps(int x, int y) {
 }
 
 // =========================================================================
-// === FINAL ANALYSIS FUNCTION (with BOTH filtering methods) ===
+// === ANALYSIS FUNCTION (with BOTH filtering methods) ===
 // =========================================================================
 RainStatus analyzeRadarData({
   required img.Image reflectivityImage,
@@ -114,7 +110,6 @@ RainStatus analyzeRadarData({
   required double watchRadiusKm,
 }) {
   bool rainFound = false;
-  // ... (Coordinate transformation logic is unchanged) ...
   const double mapKmDiameter = radarRangeKm * 2.0;
   const double kmPerPixel = mapKmDiameter / croppedImageWidth;
   final radiusInPixels = watchRadiusKm / kmPerPixel;
@@ -150,13 +145,9 @@ RainStatus analyzeRadarData({
         final gpsCoords = _transformPixelToGps(x, y);
         final velocityPixel = velocityImage.getPixel(x, y);
 
-        // ===============================================================
-        // === VELOCITY DEBUG LOGIC INTEGRATED HERE ===
-        // ===============================================================
         final velocityResult = getClosestValueWithDetails(velocityPixel, velocityColorMap);
         final velocity = velocityResult['value']!;
 
-        // The original log.log statement now uses the confirmed velocity
         log.log(
             '--- Significant Rain DETECTED! ---\n'
                 '  Pixel Coords: (x: $x, y: $y)\n'
@@ -164,7 +155,6 @@ RainStatus analyzeRadarData({
                 '  Rain Stats:   (dBZ: $dbz, Velocity: $velocity m/s)'
         );
 
-        // The new detailed velocity debug log.log
         log.log(
             '    >> Velocity Debug:\n'
                 '       - Pixel Color (RGBA): ${velocityPixel.r}, ${velocityPixel.g}, ${velocityPixel.b}, ${velocityPixel.a}\n'

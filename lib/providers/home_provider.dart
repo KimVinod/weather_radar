@@ -1,9 +1,10 @@
 import 'dart:developer';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart' show rootBundle; // --- ADDED ---
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:weather_radar/services/ocr_service.dart';
 import 'package:weather_radar/utils/color_maps.dart';
 import 'package:weather_radar/utils/constants.dart';
@@ -18,11 +19,9 @@ import 'package:image/image.dart' as img;
 // A unique name for our background task
 const rainCheckTask = "rainRadarCheckTask";
 
-// --- SIMPLIFIED ISOLATE FUNCTION ---
+// --- SOLATE FUNCTION ---
 // It only does the heavy "pure Dart" image processing now. No OCR.
 Future<ProcessingResult?> _processAndAnalyzeImage(ImageProcessingPayload payload) async {
-  // NO MORE platform channel initialization needed here.
-
   try {
     final reflectivityImage = img.decodeImage(payload.reflectivityMapData);
     final velocityImage = img.decodeImage(payload.velocityMapData);
@@ -68,10 +67,13 @@ Future<ProcessingResult?> _processAndAnalyzeImage(ImageProcessingPayload payload
 class HomeProvider with ChangeNotifier {
   final WeatherRepository _weatherRepository = WeatherRepository();
 
+  PackageInfo? _packageInfo;
+
   bool _isLoading = true;
+  String _loadingStatusText = '';
   double _radiusKm = 20.0;
   Uint8List? _reflectivityMapData;
-  Position? _currentPosition; // Add this to store location
+  Position? _currentPosition;
   String? _error;
 
   bool _notificationsEnabled = false;
@@ -84,13 +86,15 @@ class HomeProvider with ChangeNotifier {
 
   DateTime? _radarValidTime;
 
+  PackageInfo? get packageInfo => _packageInfo;
   bool get isLoading => _isLoading;
+  String get loadingStatusText => _loadingStatusText;
   Uint8List? get reflectivityMapData => _reflectivityMapData;
   Position? get currentPosition => _currentPosition;
   String? get error => _error;
   double get radiusKm => _radiusKm;
-  bool get notificationsEnabled => _notificationsEnabled; // New getter
-  int get notificationFrequency => _notificationFrequency; // New getter
+  bool get notificationsEnabled => _notificationsEnabled;
+  int get notificationFrequency => _notificationFrequency;
   bool get useCurrentLocation => _useCurrentLocation;
   double? get customLat => _customLat;
   double? get customLon => _customLon;
@@ -104,21 +108,13 @@ class HomeProvider with ChangeNotifier {
     refreshData();
   }
 
-  // --- MODIFIED: setLocationMode ---
   Future<void> setLocationMode(bool useCurrent) async {
     _useCurrentLocation = useCurrent;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('useCurrentLocation', _useCurrentLocation);
-
-    // The call to refreshData() is REMOVED from here.
-    // The HomeScreen will now handle the refresh.
-
-    // We still need to notify listeners so the UI on the SettingsScreen
-    // can update instantly (e.g., show/hide the custom location field).
     notifyListeners();
   }
 
-  // --- MODIFIED: setCustomLocation ---
   Future<void> setCustomLocation(double lat, double lon) async {
     _customLat = lat;
     _customLon = lon;
@@ -127,7 +123,7 @@ class HomeProvider with ChangeNotifier {
     await prefs.setDouble('customLat', lat);
     await prefs.setDouble('customLon', lon);
 
-    // IMPORTANT: If we are in custom mode, we MUST update the primary
+    // If we are in custom mode, we MUST update the primary
     // 'userLat'/'userLon' that the background service uses.
     if (!_useCurrentLocation) {
       await prefs.setDouble('userLat', lat);
@@ -135,15 +131,9 @@ class HomeProvider with ChangeNotifier {
       log("Set primary alert location to custom: $lat, $lon");
     }
 
-    // The call to refreshData() is REMOVED from here.
-    // The HomeScreen will now handle the refresh.
-
-    // Notify listeners so the SettingsScreen can show the new coordinates.
     notifyListeners();
   }
 
-
-  // --- NEW NOTIFICATION CONTROL METHODS ---
 
   Future<void> toggleNotifications(bool isEnabled) async {
     await _notificationsPlugin
@@ -155,10 +145,8 @@ class HomeProvider with ChangeNotifier {
     await prefs.setBool('notificationsEnabled', _notificationsEnabled);
 
     if (_notificationsEnabled) {
-      // If user turned them ON, register the task
       _registerTask();
     } else {
-      // If user turned them OFF, cancel the task
       _cancelTask();
     }
     notifyListeners();
@@ -176,7 +164,6 @@ class HomeProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // --- PRIVATE WORKMANAGER HELPERS ---
 
   void _registerTask() {
     Workmanager().registerPeriodicTask(
@@ -198,16 +185,15 @@ class HomeProvider with ChangeNotifier {
     log("WorkManager task cancelled.");
   }
 
-  // --- UPDATED LOAD/REFRESH METHODS ---
 
   Future<void> _loadSettings() async {
+    PackageInfo packageInfo = await PackageInfo.fromPlatform();
+    _packageInfo = packageInfo;
+
     final prefs = await SharedPreferences.getInstance();
-    // Load existing settings
     _radiusKm = prefs.getDouble('watchRadius') ?? 20.0;
     _notificationsEnabled = prefs.getBool('notificationsEnabled') ?? false;
     _notificationFrequency = prefs.getInt('notificationFrequency') ?? 15;
-
-    // Load new location settings
     _useCurrentLocation = prefs.getBool('useCurrentLocation') ?? true;
     _customLat = prefs.getDouble('customLat');
     _customLon = prefs.getDouble('customLon');
@@ -215,27 +201,24 @@ class HomeProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // NEW: This method is FAST. It only updates the value in memory.
   void updateRadiusLive(double newRadius) {
     _radiusKm = newRadius;
-    notifyListeners(); // This is fast, just rebuilds the UI
+    notifyListeners();
   }
 
-  // NEW: This method is for SAVING. It can be slower.
   Future<void> saveRadius(double finalRadius) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble('watchRadius', finalRadius);
-    // No need to call notifyListeners() here, as the UI already has the final value.
     log("Radius saved: $finalRadius"); // Good for debugging
   }
 
   Future<void> refreshData() async {
     _isLoading = true;
     _error = null;
+    _loadingStatusText = 'Initializing...';
     notifyListeners();
 
     try {
-      // --- THE FIX: GET AND SET THE POSITION FOR THE UI ---
       // We need to determine the position to use for BOTH the UI marker
       // and the background analysis.
       Position? position;
@@ -258,9 +241,10 @@ class HomeProvider with ChangeNotifier {
 
       // --- SET THE STATE FOR THE UI MARKER ---
       _currentPosition = position;
-      // --- END OF FIX ---
 
-      // Now, fetch all three images.
+      _loadingStatusText = 'Fetching radar data...';
+      notifyListeners();
+
       final results = await Future.wait([
         _weatherRepository.getReflectivityMap(),
         _weatherRepository.getVelocityMap(),
@@ -272,14 +256,17 @@ class HomeProvider with ChangeNotifier {
       final maskData = (results[2] as ByteData).buffer.asUint8List();
 
       if (reflectivityData != null && velocityData != null) {
+        _loadingStatusText = 'Processing images & analyzing...';
+        notifyListeners();
+
         final ocrFuture = OcrService().processImageForTimestamp(reflectivityData);
 
         final payload = ImageProcessingPayload(
           reflectivityMapData: reflectivityData,
           velocityMapData: velocityData,
           maskData: maskData,
-          userLat: position.latitude,   // Use the position we just determined
-          userLon: position.longitude,  // Use the position we just determined
+          userLat: position.latitude,
+          userLon: position.longitude,
           radiusKm: _radiusKm,
         );
 
@@ -313,13 +300,12 @@ class HomeProvider with ChangeNotifier {
       await prefs.setDouble('userLon', _currentPosition!.longitude);
       log("Saved current location for alerts: ${_currentPosition!.latitude}, ${_currentPosition!.longitude}");
     }
-    // --- End of saving logic ---
 
     _isLoading = false;
+    _loadingStatusText = '';
     notifyListeners();
   }
 
-  // New private method for getting location
   Future<Position?> _determinePosition() async {
     bool serviceEnabled;
     LocationPermission permission;

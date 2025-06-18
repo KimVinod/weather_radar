@@ -59,7 +59,17 @@ class HomeScreen extends StatelessWidget {
         child: Consumer<HomeProvider>(
           builder: (context, provider, child) {
             if (provider.isLoading) {
-              return const CircularProgressIndicator();
+              return Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  Text(
+                    provider.loadingStatusText,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              );
             } else if (provider.error != null) {
               return Text(provider.error!, textAlign: TextAlign.center);
             } else if (provider.reflectivityMapData != null) {

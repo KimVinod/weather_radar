@@ -1,4 +1,3 @@
-// In lib/utils/coordinate_transformer.dart
 import 'dart:math';
 
 // --- RADAR CONSTANTS ---
@@ -12,8 +11,8 @@ const double croppedImageWidth = 1800.0;
 const double croppedImageHeight = 1800.0;
 
 // The radar is now at the exact center of our cropped image
-const double radarPixelCenterX = croppedImageWidth / 2.0; // 485.0
-const double radarPixelCenterY = croppedImageHeight / 2.0; // 485.0
+const double radarPixelCenterX = croppedImageWidth / 2.0;
+const double radarPixelCenterY = croppedImageHeight / 2.0;
 
 
 Map<String, double>? transformToPixel(double userLat, double userLon) {

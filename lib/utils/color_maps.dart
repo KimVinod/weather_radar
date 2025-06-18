@@ -1,5 +1,3 @@
-// lib/utils/color_maps.dart
-
 // This file contains pre-computed maps for converting radar image colors
 // to their scientific values (dBZ for reflectivity, m/s for velocity).
 

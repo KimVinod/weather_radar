@@ -5,8 +5,6 @@ import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart
 import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 
-// --- RESTORED TO SINGLETON ---
-// It's safe now because it will only be used on the main thread.
 class OcrService {
   static final OcrService _instance = OcrService._internal();
   factory OcrService() => _instance;
@@ -19,8 +17,6 @@ class OcrService {
   static const int _roiWidth = 1300;
   static const int _roiHeight = 1000;
 
-  // --- NEW METHOD ---
-  // This now takes the RAW, ORIGINAL image bytes.
   Future<DateTime?> processImageForTimestamp(Uint8List originalImageBytes) async {
     final originalImage = img.decodeImage(originalImageBytes);
     if (originalImage == null) return null;
@@ -29,7 +25,7 @@ class OcrService {
       originalImage, x: _roiX, y: _roiY, width: _roiWidth, height: _roiHeight,
     );
 
-    // The rest of the logic remains the same: save to a temp file and process.
+    // save to a temp file and process.
     try {
       final tempDir = await getTemporaryDirectory();
       final tempFile = File('${tempDir.path}/ocr_roi.jpg');
@@ -55,7 +51,6 @@ class OcrService {
       'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12,
     };
 
-    // --- NEW, MORE ROBUST LOGIC ---
     // First, remove all line breaks to treat the text as a single string.
     final singleLineText = text.replaceAll('\n', ' ');
 

@@ -1,3 +1,4 @@
+import 'package:disable_battery_optimization/disable_battery_optimization.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/home_provider.dart';
@@ -92,6 +93,7 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final providerNotListenable = Provider.of<HomeProvider>(context, listen: false);
     final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
@@ -160,7 +162,13 @@ class SettingsScreen extends StatelessWidget {
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
                         value: provider.notificationsEnabled,
-                        onChanged: provider.toggleNotifications,
+                        onChanged: (newValue) {
+                          if(newValue && !providerNotListenable.useCurrentLocation && providerNotListenable.customLat == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Please first set a fixed custom location.")));
+                          } else {
+                            provider.toggleNotifications(newValue);
+                          }
+                        },
                       ),
                       const SizedBox(height: 12),
 
@@ -225,10 +233,49 @@ class SettingsScreen extends StatelessWidget {
                           ],
                         ),
                       ),
+                      ListTile(
+                        onTap: () async {
+                          bool? isBatteryOptimizationDisabled = await DisableBatteryOptimization.isBatteryOptimizationDisabled;
+                          if(!context.mounted) return;
+                          if(isBatteryOptimizationDisabled == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Cannot check battery optimization status. Please go to Settings and do it manually.")));
+                            return;
+                          }
+                          if(isBatteryOptimizationDisabled) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("You have already disabled battery optimization.")));
+                          } else {
+                            DisableBatteryOptimization.showDisableBatteryOptimizationSettings();
+                          }
+                        },
+                        title: Text("Disable Battery Optimization", style: Theme.of(context).textTheme.titleMedium,),
+                        subtitle: Text("Useful if notifications does not work"),
+                      ),
                     ],
                   ),
                 ),
               ),
+
+              if(provider.packageInfo != null)...[
+                const SizedBox(height: 32),
+                Text('About', style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 12),
+
+                Card(
+                  elevation: 0,
+                  color: colorScheme.surfaceContainerHighest,
+                  surfaceTintColor: colorScheme.surfaceTint,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ListTile(
+                        title: Text("App Version", style: Theme.of(context).textTheme.titleMedium,),
+                        subtitle: Text("${provider.packageInfo!.version} (${provider.packageInfo!.buildNumber})"),
+                      ),
+                    ],
+                  ),
+                )
+              ],
             ],
           );
         },
