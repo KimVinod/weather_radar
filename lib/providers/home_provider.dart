@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle; // --- ADDED ---
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:weather_radar/services/ocr_service.dart';
 import 'package:weather_radar/utils/color_maps.dart';
 import 'package:weather_radar/utils/constants.dart';
@@ -68,6 +69,8 @@ Future<ProcessingResult?> _processAndAnalyzeImage(ImageProcessingPayload payload
 class HomeProvider with ChangeNotifier {
   final WeatherRepository _weatherRepository = WeatherRepository();
 
+  PackageInfo? _packageInfo;
+
   bool _isLoading = true;
   String _loadingStatusText = '';
   double _radiusKm = 20.0;
@@ -85,6 +88,7 @@ class HomeProvider with ChangeNotifier {
 
   DateTime? _radarValidTime;
 
+  PackageInfo? get packageInfo => _packageInfo;
   bool get isLoading => _isLoading;
   String get loadingStatusText => _loadingStatusText;
   Uint8List? get reflectivityMapData => _reflectivityMapData;
@@ -203,6 +207,9 @@ class HomeProvider with ChangeNotifier {
   // --- UPDATED LOAD/REFRESH METHODS ---
 
   Future<void> _loadSettings() async {
+    PackageInfo packageInfo = await PackageInfo.fromPlatform();
+    _packageInfo = packageInfo;
+
     final prefs = await SharedPreferences.getInstance();
     // Load existing settings
     _radiusKm = prefs.getDouble('watchRadius') ?? 20.0;

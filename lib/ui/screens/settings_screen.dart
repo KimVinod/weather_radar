@@ -254,6 +254,28 @@ class SettingsScreen extends StatelessWidget {
                   ),
                 ),
               ),
+
+              if(provider.packageInfo != null)...[
+                const SizedBox(height: 32),
+                Text('About', style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 12),
+
+                Card(
+                  elevation: 0,
+                  color: colorScheme.surfaceContainerHighest,
+                  surfaceTintColor: colorScheme.surfaceTint,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ListTile(
+                        title: Text("App Version", style: Theme.of(context).textTheme.titleMedium,),
+                        subtitle: Text("${provider.packageInfo!.version} (${provider.packageInfo!.buildNumber})"),
+                      ),
+                    ],
+                  ),
+                )
+              ],
             ],
           );
         },
