@@ -5,6 +5,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher_string.dart';
 import 'package:weather_radar/services/ocr_service.dart';
 import 'package:weather_radar/utils/color_maps.dart';
 import 'package:weather_radar/utils/constants.dart';
@@ -331,5 +332,13 @@ class HomeProvider with ChangeNotifier {
     }
 
     return await Geolocator.getCurrentPosition();
+  }
+  
+  Future<bool> openGithubReleases() async {
+    if(await canLaunchUrlString(githubReleasesUrl)) {
+      return await launchUrlString(githubReleasesUrl, mode: LaunchMode.inAppBrowserView);
+    } else {
+      return false;
+    }
   }
 }

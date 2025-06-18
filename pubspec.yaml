@@ -53,6 +53,7 @@ dependencies:
       url: https://github.com/pvsvamsi/Disable-Battery-Optimizations
       ref: 3bd744d03c416859bbaedecd61c1c11fc022ed75
   package_info_plus: ^8.3.0
+  url_launcher: ^6.3.1
 
 dev_dependencies:
   flutter_test:
