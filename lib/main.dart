@@ -11,7 +11,7 @@ import 'package:weather_radar/ui/screens/home_screen.dart';
 import 'package:workmanager/workmanager.dart';
 import 'providers/home_provider.dart';
 
-// --- NEW TOP-LEVEL FUNCTION FOR WORKMANAGER ---
+// --- TOP-LEVEL FUNCTION FOR WORKMANAGER ---
 // This function needs to be defined outside of any class.
 @pragma('vm:entry-point')
 void callbackDispatcher() {

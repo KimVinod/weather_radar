@@ -65,7 +65,7 @@ class HomeScreen extends StatelessWidget {
                   const CircularProgressIndicator(),
                   const SizedBox(height: 16),
                   Text(
-                    provider.loadingStatusText, // <-- Display the new status text
+                    provider.loadingStatusText,
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                 ],

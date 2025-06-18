@@ -1,5 +1,3 @@
-// lib/utils/constants.dart
-
 // --- ALERT CONFIGURATION ---
 // The dBZ value at or above which we consider the rain "significant".
 import 'package:flutter/material.dart';
@@ -9,7 +7,7 @@ const int minDbzForAlert = 20;
 // The velocity at or below which we consider the rain "approaching".
 const int approachingVelocity = -1; // Any movement towards the radar.
 
-// --- NEW: Hardcoded list of known false positive pixels ---
+// --- Hardcoded list of known false positive pixels ---
 // Use this for quick, targeted filtering of single pixels found in logs.
 // Example: const List<Offset> manualFalsePositives = [ Offset(1234, 987), ];
 Set<Offset> manualFalsePositives = {

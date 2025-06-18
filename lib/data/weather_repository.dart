@@ -1,11 +1,10 @@
 import 'dart:developer';
-import 'dart:io'; // Required for File operations
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// --- MODIFIED: Use constants for URLs and cache keys for safety ---
 const String _reflectivityMapUrl = "https://mausam.imd.gov.in/Radar/caz_vrv.gif";
 const String _velocityMapUrl = "https://mausam.imd.gov.in/Radar/ppv_vrv.gif";
 
@@ -15,7 +14,6 @@ const String _reflectivityTimestampKey = "reflectivityCacheTimestamp";
 const String _velocityTimestampKey = "velocityCacheTimestamp";
 
 class WeatherRepository {
-  // --- NEW: A single, generic caching method ---
   Future<Uint8List?> _getMapData({
     required String url,
     required String cacheFileName,
@@ -49,7 +47,7 @@ class WeatherRepository {
         return data;
       } else {
         log("Server error fetching map from $url: ${response.statusCode}");
-        // Optional: If network fails, try to return old cached data as a fallback
+        // If network fails, try to return old cached data as a fallback
         if (await cacheFile.exists()) {
           log("NETWORK FAIL: Returning stale data from cache as fallback.");
           return await cacheFile.readAsBytes();
@@ -58,7 +56,7 @@ class WeatherRepository {
       }
     } catch (e) {
       log("Error fetching map from $url: $e");
-      // Optional: Fallback to stale cache on network error
+      // Fallback to stale cache on network error
       if (await cacheFile.exists()) {
         log("NETWORK FAIL: Returning stale data from cache as fallback.");
         return await cacheFile.readAsBytes();
