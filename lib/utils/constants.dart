@@ -2,6 +2,8 @@
 // The dBZ value at or above which we consider the rain "significant".
 import 'package:flutter/material.dart';
 
+const String githubReleasesUrl = "https://github.com/KimVinod/weather_radar/releases";
+
 const int minDbzForAlert = 20;
 
 // The velocity at or below which we consider the rain "approaching".

@@ -1,6 +1,7 @@
 import 'package:disable_battery_optimization/disable_battery_optimization.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:weather_radar/utils/constants.dart';
 import '../../providers/home_provider.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -268,6 +269,15 @@ class SettingsScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      ListTile(
+                        onTap: () async {
+                          final res = await provider.openGithubReleases();
+                          if(!context.mounted) return;
+                          if(!res) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Cannot open direct links. Please manually visit:\n$githubReleasesUrl"), showCloseIcon: true, duration: Duration(minutes: 5),));
+                        },
+                        title: Text("Check for Updates", style: Theme.of(context).textTheme.titleMedium,),
+                        subtitle: Text("Stay updated with new features & improvements"),
+                      ),
                       ListTile(
                         title: Text("App Version", style: Theme.of(context).textTheme.titleMedium,),
                         subtitle: Text("${provider.packageInfo!.version} (${provider.packageInfo!.buildNumber})"),
