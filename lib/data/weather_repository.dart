@@ -1,9 +1,9 @@
 import 'dart:developer';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:weather_radar/utils/cached_raw_image_data.dart';
 
 const String _reflectivityMapUrl = "https://mausam.imd.gov.in/Radar/caz_vrv.gif";
 const String _velocityMapUrl = "https://mausam.imd.gov.in/Radar/ppv_vrv.gif";
@@ -14,52 +14,58 @@ const String _reflectivityTimestampKey = "reflectivityCacheTimestamp";
 const String _velocityTimestampKey = "velocityCacheTimestamp";
 
 class WeatherRepository {
-  Future<Uint8List?> _getMapData({
+  Future<CachedRawImageData?> _getMapData({
     required String url,
     required String cacheFileName,
     required String timestampKey,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    final cacheDir = await getTemporaryDirectory(); // Use temp directory for cache
+    final cacheDir = await getTemporaryDirectory();
     final cacheFile = File('${cacheDir.path}/$cacheFileName');
 
-    // --- 1. Check the cache first ---
     final lastFetchMillis = prefs.getInt(timestampKey);
     if (lastFetchMillis != null) {
       final cacheAge = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(lastFetchMillis));
-      // Check if the cache is less than 5 minutes old AND the file exists
       if (cacheAge < const Duration(minutes: 5) && await cacheFile.exists()) {
-        log("CACHE HIT: Loading '$cacheFileName' from local cache.");
-        return await cacheFile.readAsBytes();
+        log("RAW CACHE HIT: Loading '$cacheFileName' from local cache.");
+        // Return the data and its saved timestamp ---
+        return CachedRawImageData(
+          bytes: await cacheFile.readAsBytes(),
+          timestamp: DateTime.fromMillisecondsSinceEpoch(lastFetchMillis),
+        );
       }
     }
 
-    // --- 2. If cache is invalid or missing, fetch from network ---
-    log("CACHE MISS: Fetching '$cacheFileName' from network.");
+    log("RAW CACHE MISS: Fetching '$cacheFileName' from network.");
     try {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
+        final now = DateTime.now();
         final data = response.bodyBytes;
-        // --- 3. Save the new data to the cache ---
-        await cacheFile.writeAsBytes(data); // Save the file
-        await prefs.setInt(timestampKey, DateTime.now().millisecondsSinceEpoch); // Save the timestamp
-        log("CACHE SAVED: '$cacheFileName' updated in cache.");
-        return data;
+        await cacheFile.writeAsBytes(data);
+        await prefs.setInt(timestampKey, now.millisecondsSinceEpoch);
+        log("RAW CACHE SAVED: '$cacheFileName' updated in cache.");
+        // Return the new data and its timestamp ---
+        return CachedRawImageData(bytes: data, timestamp: now);
       } else {
         log("Server error fetching map from $url: ${response.statusCode}");
-        // If network fails, try to return old cached data as a fallback
-        if (await cacheFile.exists()) {
+        if (await cacheFile.exists() && lastFetchMillis != null) {
           log("NETWORK FAIL: Returning stale data from cache as fallback.");
-          return await cacheFile.readAsBytes();
+          return CachedRawImageData(
+            bytes: await cacheFile.readAsBytes(),
+            timestamp: DateTime.fromMillisecondsSinceEpoch(lastFetchMillis),
+          );
         }
         return null;
       }
     } catch (e) {
       log("Error fetching map from $url: $e");
-      // Fallback to stale cache on network error
-      if (await cacheFile.exists()) {
+      if (await cacheFile.exists() && lastFetchMillis != null) {
         log("NETWORK FAIL: Returning stale data from cache as fallback.");
-        return await cacheFile.readAsBytes();
+        return CachedRawImageData(
+          bytes: await cacheFile.readAsBytes(),
+          timestamp: DateTime.fromMillisecondsSinceEpoch(lastFetchMillis),
+        );
       }
       return null;
     }
@@ -67,7 +73,7 @@ class WeatherRepository {
 
   /// Fetches the reflectivity map (shows where the rain is).
   /// Uses a 5-minute file-based cache.
-  Future<Uint8List?> getReflectivityMap() async {
+  Future<CachedRawImageData?> getReflectivityMap() async {
     return _getMapData(
       url: _reflectivityMapUrl,
       cacheFileName: _reflectivityCacheFile,
@@ -77,7 +83,7 @@ class WeatherRepository {
 
   /// Fetches the velocity map (shows which way the rain is moving).
   /// Uses a 5-minute file-based cache.
-  Future<Uint8List?> getVelocityMap() async {
+  Future<CachedRawImageData?> getVelocityMap() async {
     return _getMapData(
       url: _velocityMapUrl,
       cacheFileName: _velocityCacheFile,
