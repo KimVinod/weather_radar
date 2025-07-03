@@ -27,18 +27,15 @@ const rainCheckTask = "rainRadarCheckTask";
 Future<ProcessingResult?> _processAndAnalyzeImage(ImageProcessingPayload payload) async {
   try {
     final reflectivityImage = img.decodeImage(payload.reflectivityMapData);
-    final velocityImage = img.decodeImage(payload.velocityMapData);
     final maskImage = img.decodeImage(payload.maskData);
 
-    if (reflectivityImage != null && velocityImage != null && maskImage != null) {
+    if (reflectivityImage != null && maskImage != null) {
       final croppedReflectivity = cropReflectivityImage(reflectivityImage);
-      final croppedVelocity = cropVelocityImage(velocityImage);
       final croppedMask = cropReflectivityImage(maskImage);
 
-      if (croppedReflectivity != null && croppedVelocity != null && croppedMask != null) {
+      if (croppedReflectivity != null && croppedMask != null) {
         final status = analyzeRadarData(
           reflectivityImage: croppedReflectivity,
-          velocityImage: croppedVelocity,
           maskImage: croppedMask,
           userLat: payload.userLat,
           userLon: payload.userLon,
@@ -216,6 +213,11 @@ class HomeProvider with ChangeNotifier {
   }
 
   Future<void> refreshData() async {
+    if(_isLoading) {
+      log("Already running. Skipping...");
+      return;
+    }
+
     _isLoading = true;
     _error = null;
     _loadingStatusText = 'Initializing...';
@@ -270,7 +272,7 @@ class HomeProvider with ChangeNotifier {
       final processedCacheFile = File('${cacheDir.path}/processed_reflectivity.png');
 
       // --- 4. PROCESSED CACHE HIT LOGIC ---
-      if (isSameImage && isSameRadius && isSameLocation && await processedCacheFile.exists()) {
+      if (isSameImage && isSameRadius && isSameLocation && await processedCacheFile.exists() && kReleaseMode) {
         log("PROCESSED CACHE HIT: Loading fully processed data from cache.");
 
         // Load all processed data directly from cache, skipping all heavy work.
@@ -286,9 +288,7 @@ class HomeProvider with ChangeNotifier {
         _loadingStatusText = 'Analyzing...';
         notifyListeners();
 
-        final velocityData = await _weatherRepository.getVelocityMap();
         final maskByteData = await rootBundle.load('assets/images/false_positive.png');
-        if (velocityData == null) throw Exception("Failed to get velocity map.");
 
         // OCR is faster, run it while we wait for the isolate
         final ocrFuture = OcrService().processImageForTimestamp(reflectivityData.bytes);
@@ -296,7 +296,6 @@ class HomeProvider with ChangeNotifier {
         // Run heavy processing in the isolate
         final payload = ImageProcessingPayload(
           reflectivityMapData: reflectivityData.bytes,
-          velocityMapData: velocityData.bytes,
           maskData: maskByteData.buffer.asUint8List(),
           userLat: position.latitude,
           userLon: position.longitude,

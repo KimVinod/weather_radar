@@ -1,18 +1,14 @@
-// --- ALERT CONFIGURATION ---
-// The dBZ value at or above which we consider the rain "significant".
 import 'package:flutter/material.dart';
 
 const String githubReleasesUrl = "https://github.com/KimVinod/weather_radar/releases";
 
-const int minDbzForAlert = 20;
-
-// The velocity at or below which we consider the rain "approaching".
-const int approachingVelocity = -1; // Any movement towards the radar.
+// The dBZ value at or above which we consider the rain "significant".
+const int minDbzForAlert = 32;
 
 // --- Hardcoded list of known false positive pixels ---
 // Use this for quick, targeted filtering of single pixels found in logs.
 // Example: const List<Offset> manualFalsePositives = [ Offset(1234, 987), ];
-Set<Offset> manualFalsePositives = {
+final Set<Offset> manualFalsePositives = {
   Offset(875, 964),
   Offset(875, 965),
   Offset(876, 965),
@@ -24,7 +20,6 @@ Set<Offset> manualFalsePositives = {
   Offset(878, 968),
   Offset(879, 968),
   Offset(880, 946),
-  Offset(880, 948),
   Offset(880, 948),
   Offset(880, 949),
   Offset(881, 948),

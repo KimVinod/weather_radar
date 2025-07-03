@@ -6,12 +6,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:weather_radar/utils/cached_raw_image_data.dart';
 
 const String _reflectivityMapUrl = "https://mausam.imd.gov.in/Radar/caz_vrv.gif";
-const String _velocityMapUrl = "https://mausam.imd.gov.in/Radar/ppv_vrv.gif";
 
 const String _reflectivityCacheFile = "reflectivity.gif";
-const String _velocityCacheFile = "velocity.gif";
 const String _reflectivityTimestampKey = "reflectivityCacheTimestamp";
-const String _velocityTimestampKey = "velocityCacheTimestamp";
 
 class WeatherRepository {
   Future<CachedRawImageData?> _getMapData({
@@ -81,13 +78,4 @@ class WeatherRepository {
     );
   }
 
-  /// Fetches the velocity map (shows which way the rain is moving).
-  /// Uses a 5-minute file-based cache.
-  Future<CachedRawImageData?> getVelocityMap() async {
-    return _getMapData(
-      url: _velocityMapUrl,
-      cacheFileName: _velocityCacheFile,
-      timestampKey: _velocityTimestampKey,
-    );
-  }
 }

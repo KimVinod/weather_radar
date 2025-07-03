@@ -7,21 +7,6 @@ import 'package:weather_radar/utils/rain_status.dart';
 import 'package:weather_radar/utils/color_maps.dart';
 import 'dart:developer' as log;
 
-/// Helper to crop the image.
-img.Image? cropVelocityImage(img.Image? originalImage) {
-  if (originalImage == null) return null;
-  // These coordinates are from the original raw GIF image.
-  final croppedImage = img.copyCrop(
-    originalImage,
-    x: 30,
-    y: 30,
-    width: 2400,
-    height: 2400,
-  );
-
-  return img.resize(croppedImage, height: 1800, width: 1800);
-}
-
 img.Image? cropReflectivityImage(img.Image? originalImage) {
   if (originalImage == null) return null;
   // These coordinates are from the original raw GIF image.
@@ -34,21 +19,18 @@ img.Image? cropReflectivityImage(img.Image? originalImage) {
   );
 }
 
-Map<String, num> getClosestValueWithDetails(img.Pixel pixel, Map<int, int> colorMap) {
-  // We can use a more lenient threshold specifically for velocity if needed,
-  // Increase the matchThreshold for more lenient matching.
-  const double matchThreshold = 100.0;
+int getClosestValue(img.Pixel pixel, Map<int, int> colorMap) {
+  const double matchThreshold = 100.0; // Using your stricter threshold
 
   num minDistance = double.infinity;
   int closestValue = 0;
-  int closestColorKey = 0;
 
   final r1 = pixel.r;
   final g1 = pixel.g;
   final b1 = pixel.b;
 
   if (pixel.a < 128) {
-    return {'value': 0, 'distance': double.infinity, 'closestColorKey': 0};
+    return 0; // Transparent pixels are not rain
   }
 
   colorMap.forEach((key, value) {
@@ -59,20 +41,14 @@ Map<String, num> getClosestValueWithDetails(img.Pixel pixel, Map<int, int> color
     if (distance < minDistance) {
       minDistance = distance;
       closestValue = value;
-      closestColorKey = key;
     }
   });
 
   if (minDistance > matchThreshold) {
-    // Return 0 if the match is not close enough
-    return {'value': 0, 'distance': minDistance, 'closestColorKey': closestColorKey};
+    return 0; // Match is not close enough, treat as no rain
   }
 
-  return {'value': closestValue, 'distance': minDistance, 'closestColorKey': closestColorKey};
-}
-
-int getClosestValue(img.Pixel pixel, Map<int, int> colorMap) {
-  return getClosestValueWithDetails(pixel, colorMap)['value']!.toInt();
+  return closestValue;
 }
 
 // --- elper function to convert pixel back to GPS ---
@@ -103,7 +79,6 @@ Map<String, double> _transformPixelToGps(int x, int y) {
 // =========================================================================
 RainStatus analyzeRadarData({
   required img.Image reflectivityImage,
-  required img.Image velocityImage,
   required img.Image maskImage,
   required double userLat,
   required double userLon,
@@ -128,7 +103,7 @@ RainStatus analyzeRadarData({
       if (distance > radiusInPixels) continue;
 
       if (manualFalsePositives.contains(Offset(x.toDouble(), y.toDouble()))) {
-        log.log('--- Manually Filtering Pixel: (x: $x, y: $y). This pixel will be ignored. ---');
+        print('--- Manually Filtering Pixel: (x: $x, y: $y). This pixel will be ignored. ---');
         continue;
       }
 
@@ -142,41 +117,29 @@ RainStatus analyzeRadarData({
       final dbz = getClosestValue(reflectivityPixel, reflectivityColorMap);
 
       if (dbz >= minDbzForAlert) {
+        // We found a rain pixel.
+        // --- THIS IS THE FIX: Set the flag, but DO NOT return yet ---
+        rainFound = true;
+
+        // Log the finding, then let the loop continue.
         final gpsCoords = _transformPixelToGps(x, y);
-        final velocityPixel = velocityImage.getPixel(x, y);
-
-        final velocityResult = getClosestValueWithDetails(velocityPixel, velocityColorMap);
-        final velocity = velocityResult['value']!;
-
-        log.log(
+        print(
             '--- Significant Rain DETECTED! ---\n'
                 '  Pixel Coords: (x: $x, y: $y)\n'
                 '  GPS Coords:   (Lat: ${gpsCoords['lat']!.toStringAsFixed(4)}, Lon: ${gpsCoords['lon']!.toStringAsFixed(4)})\n'
-                '  Rain Stats:   (dBZ: $dbz, Velocity: $velocity m/s)'
+                '  Rain Stats:   (dBZ: $dbz)'
         );
-
-        log.log(
-            '    >> Velocity Debug:\n'
-                '       - Pixel Color (RGBA): ${velocityPixel.r}, ${velocityPixel.g}, ${velocityPixel.b}, ${velocityPixel.a}\n'
-                '       - Closest Map Color: 0x${velocityResult['closestColorKey']!.toInt().toRadixString(16).toUpperCase()}\n'
-                '       - Color Distance: ${velocityResult['distance']!.toStringAsFixed(2)}'
-        );
-
-        rainFound = true;
-
-        if (velocity <= approachingVelocity) {
-          log.log('  >> STATUS: This rain is APPROACHING. Alert condition met.');
-          return RainStatus.approachingRain;
-        }
+        // By not returning, the loop will continue to the next pixel.
       }
     }
   }
 
+  // --- Decision is made AFTER the loops are finished ---
   if (rainFound) {
-    log.log('--- Analysis Complete: Rain was found in the area, but none was approaching.');
+    log.log('--- Analysis Complete: Rain was found in the area.');
     return RainStatus.rainPresent;
+  } else {
+    log.log('--- Analysis Complete: No significant rain found in the area.');
+    return RainStatus.clear;
   }
-
-  log.log('--- Analysis Complete: No significant rain found in the area.');
-  return RainStatus.clear;
 }
