@@ -220,7 +220,7 @@ class HomeProvider with ChangeNotifier {
 
     _isLoading = true;
     _error = null;
-    _loadingStatusText = 'Initializing...';
+    _loadingStatusText = 'Initializing... (1/3)';
     notifyListeners();
 
     try {
@@ -252,7 +252,7 @@ class HomeProvider with ChangeNotifier {
       final currentRadius = _radiusKm;
 
       // --- 2. GET RAW DATA (FROM REPO'S CACHE OR NETWORK) ---
-      _loadingStatusText = 'Fetching radar data...';
+      _loadingStatusText = 'Fetching radar data... (2/3)';
       notifyListeners();
       final reflectivityData = await _weatherRepository.getReflectivityMap();
       if (reflectivityData == null) throw Exception("Failed to get reflectivity map.");
@@ -285,7 +285,7 @@ class HomeProvider with ChangeNotifier {
       } else {
         // --- 5. PROCESSED CACHE MISS LOGIC ---
         log("PROCESSED CACHE MISS: Re-processing required. Reason: sameImage=$isSameImage, sameRadius=$isSameRadius, sameLocation=$isSameLocation");
-        _loadingStatusText = 'Analyzing...';
+        _loadingStatusText = 'Analyzing... (3/3)';
         notifyListeners();
 
         final maskByteData = await rootBundle.load('assets/images/false_positive.png');
