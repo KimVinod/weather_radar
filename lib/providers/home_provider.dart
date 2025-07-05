@@ -69,7 +69,7 @@ class HomeProvider with ChangeNotifier {
 
   PackageInfo? _packageInfo;
 
-  bool _isLoading = true;
+  bool _isLoading = false;
   String _loadingStatusText = '';
   double _radiusKm = 20.0;
   Uint8List? _reflectivityMapData;
@@ -104,8 +104,11 @@ class HomeProvider with ChangeNotifier {
   final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
 
   HomeProvider() {
-    _loadSettings();
-    refreshData();
+    init();
+  }
+
+  void init()  {
+    _loadSettings().then((value) => refreshData());
   }
 
   Future<void> setLocationMode(bool useCurrent) async {
