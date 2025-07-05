@@ -1,10 +1,12 @@
 import 'dart:developer';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 import 'package:weather_radar/services/ocr_service.dart';
 import 'package:weather_radar/utils/color_maps.dart';
@@ -25,18 +27,15 @@ const rainCheckTask = "rainRadarCheckTask";
 Future<ProcessingResult?> _processAndAnalyzeImage(ImageProcessingPayload payload) async {
   try {
     final reflectivityImage = img.decodeImage(payload.reflectivityMapData);
-    final velocityImage = img.decodeImage(payload.velocityMapData);
     final maskImage = img.decodeImage(payload.maskData);
 
-    if (reflectivityImage != null && velocityImage != null && maskImage != null) {
+    if (reflectivityImage != null && maskImage != null) {
       final croppedReflectivity = cropReflectivityImage(reflectivityImage);
-      final croppedVelocity = cropVelocityImage(velocityImage);
       final croppedMask = cropReflectivityImage(maskImage);
 
-      if (croppedReflectivity != null && croppedVelocity != null && croppedMask != null) {
+      if (croppedReflectivity != null && croppedMask != null) {
         final status = analyzeRadarData(
           reflectivityImage: croppedReflectivity,
-          velocityImage: croppedVelocity,
           maskImage: croppedMask,
           userLat: payload.userLat,
           userLon: payload.userLon,
@@ -70,7 +69,7 @@ class HomeProvider with ChangeNotifier {
 
   PackageInfo? _packageInfo;
 
-  bool _isLoading = true;
+  bool _isLoading = false;
   String _loadingStatusText = '';
   double _radiusKm = 20.0;
   Uint8List? _reflectivityMapData;
@@ -105,8 +104,11 @@ class HomeProvider with ChangeNotifier {
   final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
 
   HomeProvider() {
-    _loadSettings();
-    refreshData();
+    init();
+  }
+
+  void init()  {
+    _loadSettings().then((value) => refreshData());
   }
 
   Future<void> setLocationMode(bool useCurrent) async {
@@ -214,14 +216,21 @@ class HomeProvider with ChangeNotifier {
   }
 
   Future<void> refreshData() async {
+    if(_isLoading) {
+      log("Already running. Skipping...");
+      return;
+    }
+
     _isLoading = true;
     _error = null;
-    _loadingStatusText = 'Initializing...';
+    _loadingStatusText = 'Initializing... (1/3)';
     notifyListeners();
 
     try {
       // We need to determine the position to use for BOTH the UI marker
       // and the background analysis.
+      final prefs = await SharedPreferences.getInstance();
+
       Position? position;
       if (_useCurrentLocation) {
         position = await _determinePosition();
@@ -243,47 +252,86 @@ class HomeProvider with ChangeNotifier {
       // --- SET THE STATE FOR THE UI MARKER ---
       _currentPosition = position;
 
-      _loadingStatusText = 'Fetching radar data...';
+      final currentRadius = _radiusKm;
+
+      // --- 2. GET RAW DATA (FROM REPO'S CACHE OR NETWORK) ---
+      _loadingStatusText = 'Fetching radar data... (2/3)';
       notifyListeners();
+      final reflectivityData = await _weatherRepository.getReflectivityMap();
+      if (reflectivityData == null) throw Exception("Failed to get reflectivity map.");
 
-      final results = await Future.wait([
-        _weatherRepository.getReflectivityMap(),
-        _weatherRepository.getVelocityMap(),
-        rootBundle.load('assets/images/false_positive.png'),
-      ]);
+      // --- 3. CHECK IF PROCESSED DATA IS STILL VALID ---
+      final lastProcessedImageTimestamp = prefs.getInt('processed_image_timestamp') ?? 0;
+      final lastProcessedRadius = prefs.getDouble('processed_radius') ?? 0.0;
+      final lastProcessedLat = prefs.getDouble('processed_lat') ?? 0.0;
+      final lastProcessedLon = prefs.getDouble('processed_lon') ?? 0.0;
 
-      final reflectivityData = results[0] as Uint8List?;
-      final velocityData = results[1] as Uint8List?;
-      final maskData = (results[2] as ByteData).buffer.asUint8List();
+      final isSameImage = reflectivityData.timestamp.millisecondsSinceEpoch == lastProcessedImageTimestamp;
+      final isSameRadius = currentRadius == lastProcessedRadius;
+      final isSameLocation = (position.latitude - lastProcessedLat).abs() < 0.0001 &&
+          (position.longitude - lastProcessedLon).abs() < 0.0001;
 
-      if (reflectivityData != null && velocityData != null) {
-        _loadingStatusText = 'Processing images & analyzing...';
+      final cacheDir = await getTemporaryDirectory();
+      final processedCacheFile = File('${cacheDir.path}/processed_reflectivity.png');
+
+      // --- 4. PROCESSED CACHE HIT LOGIC ---
+      if (isSameImage && isSameRadius && isSameLocation && await processedCacheFile.exists() && kReleaseMode) {
+        log("PROCESSED CACHE HIT: Loading fully processed data from cache.");
+
+        // Load all processed data directly from cache, skipping all heavy work.
+        _reflectivityMapData = await processedCacheFile.readAsBytes();
+        final statusIndex = prefs.getInt('processed_status_index') ?? 0;
+        _rainStatus = RainStatus.values[statusIndex];
+        final validTimeMillis = prefs.getInt('processed_valid_time') ?? 0;
+        _radarValidTime = validTimeMillis > 0 ? DateTime.fromMillisecondsSinceEpoch(validTimeMillis) : null;
+
+      } else {
+        // --- 5. PROCESSED CACHE MISS LOGIC ---
+        log("PROCESSED CACHE MISS: Re-processing required. Reason: sameImage=$isSameImage, sameRadius=$isSameRadius, sameLocation=$isSameLocation");
+        _loadingStatusText = 'Analyzing... (3/3)';
         notifyListeners();
 
-        final ocrFuture = OcrService().processImageForTimestamp(reflectivityData);
+        final maskByteData = await rootBundle.load('assets/images/false_positive.png');
 
+        // OCR is faster, run it while we wait for the isolate
+        final ocrFuture = OcrService().processImageForTimestamp(reflectivityData.bytes);
+
+        // Run heavy processing in the isolate
         final payload = ImageProcessingPayload(
-          reflectivityMapData: reflectivityData,
-          velocityMapData: velocityData,
-          maskData: maskData,
+          reflectivityMapData: reflectivityData.bytes,
+          maskData: maskByteData.buffer.asUint8List(),
           userLat: position.latitude,
           userLon: position.longitude,
-          radiusKm: _radiusKm,
+          radiusKm: currentRadius,
         );
+        final processingResult = await compute(_processAndAnalyzeImage, payload);
 
-        final result = await compute(_processAndAnalyzeImage, payload);
-
+        // Await OCR and update state
         final validTime = await ocrFuture;
 
-        if (result != null) {
-          _reflectivityMapData = result.imageBytes;
-          _rainStatus = result.status;
+        if (processingResult != null) {
+          _reflectivityMapData = processingResult.imageBytes;
+          _rainStatus = processingResult.status;
           _radarValidTime = validTime;
+
+          // --- SAVE NEWLY PROCESSED DATA TO CACHE ---
+          await processedCacheFile.writeAsBytes(_reflectivityMapData!);
+          await prefs.setInt('processed_image_timestamp', reflectivityData.timestamp.millisecondsSinceEpoch);
+          await prefs.setDouble('processed_radius', currentRadius);
+          await prefs.setDouble('processed_lat', position.latitude);
+          await prefs.setDouble('processed_lon', position.longitude);
+          await prefs.setInt('processed_status_index', _rainStatus.index);
+          await prefs.setInt('processed_valid_time', validTime?.millisecondsSinceEpoch ?? 0);
+          log("PROCESSED CACHE SAVED: New data and parameters cached.");
         } else {
           _error = "Failed to process map image.";
         }
-      } else {
-        _error = "Failed to load radar maps.";
+      }
+
+      // Save latest location for the background service (this should always run)
+      if (_useCurrentLocation && _currentPosition != null) {
+        await prefs.setDouble('userLat', _currentPosition!.latitude);
+        await prefs.setDouble('userLon', _currentPosition!.longitude);
       }
     } catch (e) {
       log("Error in refreshData: $e");
@@ -292,14 +340,6 @@ class HomeProvider with ChangeNotifier {
       } else {
         _error = "An error occurred. Please try again.";
       }
-    }
-
-    // --- The logic to SAVE the location to SharedPreferences for the background task is still important ---
-    final prefs = await SharedPreferences.getInstance();
-    if (_useCurrentLocation && _currentPosition != null) {
-      await prefs.setDouble('userLat', _currentPosition!.latitude);
-      await prefs.setDouble('userLon', _currentPosition!.longitude);
-      log("Saved current location for alerts: ${_currentPosition!.latitude}, ${_currentPosition!.longitude}");
     }
 
     _isLoading = false;

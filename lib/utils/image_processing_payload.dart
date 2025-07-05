@@ -13,15 +13,13 @@ class ProcessingResult {
 // --- Payload now includes everything for analysis ---
 class ImageProcessingPayload {
   final Uint8List reflectivityMapData;
-  final Uint8List velocityMapData; // <-- New
   final Uint8List maskData;
-  final double userLat;            // <-- New
-  final double userLon;            // <-- New
-  final double radiusKm;           // <-- New
+  final double userLat;
+  final double userLon;
+  final double radiusKm;
 
   ImageProcessingPayload({
     required this.reflectivityMapData,
-    required this.velocityMapData,
     required this.maskData,
     required this.userLat,
     required this.userLon,

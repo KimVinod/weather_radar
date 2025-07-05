@@ -12,11 +12,6 @@ class StatusIndicator extends StatelessWidget {
     IconData icon;
 
     switch (status) {
-      case RainStatus.approachingRain:
-        text = 'Approaching Rain';
-        color = Colors.red.shade400;
-        icon = Icons.warning_amber;
-        break;
       case RainStatus.rainPresent:
         text = 'Rain Detected';
         color = Colors.blue.shade300;

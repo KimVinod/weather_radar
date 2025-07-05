@@ -21,23 +21,3 @@ const Map<int, int> reflectivityColorMap = {
   0xFFFF0000: 56, // Red
   0xFFB30000: 60, // Darker Red
 };
-
-// The key is the color's integer value.
-// The value is the velocity in meters per second (m/s).
-// Negative values (blues) indicate movement TOWARDS the radar.
-// Positive values (reds) indicate movement AWAY from the radar.
-const Map<int, int> velocityColorMap = {
-  // Blues (Approaching)
-  0xFF000080: -30, // Darkest Blue
-  0xFF0000FF: -20, // Blue
-  0xFF00BFFF: -10, // Sky Blue / Cyan
-  0xFF337870: -5, //Teal
-
-  // Neutral
-  0xFFFFFFFF: 0,   // White
-
-  // Yellows/Reds (Receding)
-  0xFFFFFF00: 10,  // Yellow
-  0xFFFFA500: 20,  // Orange
-  0xFFFF0000: 30,  // Red
-};
