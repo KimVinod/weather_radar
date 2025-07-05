@@ -44,8 +44,8 @@ dependencies:
   settings_ui: ^2.0.2
   google_mlkit_text_recognition: ^0.15.0
   timeago: ^3.7.1
-  firebase_core: ^3.15.0
-  firebase_crashlytics: ^4.3.8
+  firebase_core: ^3.15.1
+  firebase_crashlytics: ^4.3.9
   disable_battery_optimization:
     git:
       url: https://github.com/pvsvamsi/Disable-Battery-Optimizations
